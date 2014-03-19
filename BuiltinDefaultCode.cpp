@@ -8,7 +8,6 @@ const int threshold = 300;  // Distance sensor threshold
 int readings[numReadings];  // Readings from the analog input
 int sensorIndex = 0;        // Index of the current reading
 int total = 0;              // Running total
-int dist_average = 0;       // Distance sensor average
 double myTime = 0;          // Timer for automatic ball pickup
 double targetTime = 0;
 
@@ -18,6 +17,7 @@ bool buttonStartFlag = true;
 bool armFlag = true;
 bool timerFlag;
 bool pickupFlag = false;
+bool abortFlag = true;
 bool fireFlag = false;
 bool positionFlag = false;
 
@@ -35,10 +35,10 @@ class BuiltinDefaultCode : public IterativeRobot {
 	Talon *left_2;
 	Talon *right_1;
 	Talon *right_2;
-	Victor *zoidbergRoller;
-	Victor *zoidbergPosition;
+	Victor *gobblerRoller;
+	Victor *gobblerPosition;
 	Victor *shooter;
-	
+
 	// Compressor
 	Compressor *compressor;	
 	
@@ -47,8 +47,8 @@ class BuiltinDefaultCode : public IterativeRobot {
 	Solenoid *shifterLo; 
 
 	// Encoders
-	Encoder *leftEncoder;
-	Encoder *rightEncoder;
+	Encoder *leftDriveEncoder;
+	Encoder *rightDriveEncoder;
 
 	// Sensors
 	AnalogChannel *potentiometer;
@@ -58,10 +58,12 @@ class BuiltinDefaultCode : public IterativeRobot {
 	AxisCamera *camera;
 	
 	// Timer for automatic ball pickup
-	Timer *timer;
+	Timer *ballPickupTimer;
 
 	// Limit switches
 	DigitalInput *limitSwitchShooter;
+	DigitalInput *limitSwitchPickupLower;
+	DigitalInput *limitSwitchPickupUpper;
 
 	// Joystick
 	Joystick *gamePadDriver;  // Silver
@@ -85,27 +87,29 @@ public:
 		right_1 = new Talon(3);
 		right_2 = new Talon(4);
 
-		zoidbergRoller = new Victor(5);
+		gobblerRoller = new Victor(5);
 		shooter = new Victor(7);
-		zoidbergPosition = new Victor(8);
+		gobblerPosition = new Victor(8);
 
 		compressor = new Compressor(1,1);
 
 		shifterHi = new Solenoid(1);
 		shifterLo = new Solenoid(2);
-				
-		leftEncoder  = new Encoder(4, 5); // Second int is a placeholder to fix an error with the code (Encoder takes 2 ints)
-		rightEncoder = new Encoder(1, 2); // Same here
-		
+
+		leftDriveEncoder  = new Encoder(4, 5); // Second int is a placeholder to fix an error with the code (Encoder takes 2 ints)
+		rightDriveEncoder = new Encoder(1, 2); // Same here
+
 		distanceSensor = new AnalogChannel(1);
 		potentiometer  = new AnalogChannel(2);
 
 		gamePadDriver  = new Joystick(1);
 		gamePadShooter = new Joystick(2);
 
-		limitSwitchShooter = new DigitalInput(6);
-		
-		timer = new Timer();
+		limitSwitchShooter     = new DigitalInput(6);
+		limitSwitchPickupLower = new DigitalInput(7);
+		limitSwitchPickupUpper = new DigitalInput(8);
+
+		ballPickupTimer = new Timer();
 
 		// Acquire the Driver Station object
 		m_ds = DriverStation::GetInstance();
@@ -121,8 +125,8 @@ public:
 		m_y = 0;
 
         // Set feet per pulse for encoder.
-        leftEncoder->SetDistancePerPulse(.00460243323); //Not the actual value. Find the gear ratio.
-        rightEncoder->SetDistancePerPulse(.00460243323);
+        leftDriveEncoder->SetDistancePerPulse(.00460243323); //Not the actual value. Find the gear ratio.
+        rightDriveEncoder->SetDistancePerPulse(.00460243323);
 
 		printf("BuiltinDefaultCode Constructor Completed\n");
 	}
@@ -149,8 +153,8 @@ public:
 		for (int thisReading = 0; thisReading < numReadings; thisReading++) readings[thisReading] = 0; 
 		compressor->Start();
 		compressor_enabled = true;
-		timer->Start();
-		timer->Reset();
+		ballPickupTimer->Start();
+		ballPickupTimer->Reset();
 	}
 
 	/********************************** Periodic Routines *************************************/
@@ -164,7 +168,7 @@ public:
 		//seekAndDestroy();
 		//shoot();
 		//centerRobot();
-		//0.,,,,,,,=0seekAndDestroy();
+		//seekAndDestroy();
 		//shoot();
 	}
 
@@ -181,7 +185,7 @@ public:
 	}
 
 	void ShiftHigh(void) {
-		// shifter->Get() return value: false is low gear, true is high gear
+		// shifter->Get() return values: false is low gear, true is high gear
 		if(!(shifterHi->Get())) {
 			shifterHi->Set(true);
 			shifterLo->Set(false);
@@ -189,7 +193,7 @@ public:
 	}
 
 	void ShiftLow(void) {
-		// shifter->Get() return value: false is low gear, true is high gear
+		// shifter->Get() return values: false is low gear, true is high gear
 		if(shifterHi->Get()) {
 			shifterHi->Set(false);
 			shifterLo->Set(true);
@@ -197,17 +201,6 @@ public:
 	}
 
 	void TeleopPeriodic(void) {
-		total -= readings[sensorIndex];         
-		//readings[sensorIndex] = distanceSensor->GetValue();
-		readings[sensorIndex] = 1;
-		total += readings[sensorIndex];       
-		sensorIndex++;
-
-		if (sensorIndex >= numReadings) {
-			sensorIndex = 0;                           
-		}
-		dist_average = total / numReadings;
-		
 		float leftStick  = -1*gamePadDriver->GetRawAxis(2);
 		float rightStick = gamePadDriver->GetRawAxis(4);
 		bool buttonX  = gamePadShooter->GetRawButton(1);
@@ -220,15 +213,13 @@ public:
 		bool rightTrigger = gamePadShooter->GetRawButton(8);
 		// bool buttonBack = gamePadShooter->GetRawButton(9);
 		bool buttonStart = gamePadShooter->GetRawButton(10);
-		
 
 		// Compressor toggle
 		if(buttonStart && buttonStartFlag) {
 			if(compressor_enabled) {
 				compressor->Stop();
 				compressor_enabled = false;
-			} 
-			else {
+			} else {
 				compressor->Start();
 				compressor_enabled = true;
 			}
@@ -236,30 +227,30 @@ public:
 		} else if (!buttonStart) {
 			buttonStartFlag = true;
 		}
-		
+
 		// Shifting
 		if(rightBumper && !leftBumper) {
 			ShiftHigh();
 		} else if(leftBumper && !rightBumper) {
 			ShiftLow();
 		}
-		
+
 		if((rightTrigger) && (!leftTrigger))
 			positionSpeed = 1.0;
-	
+
 	    if((!rightTrigger) && (leftTrigger))
 			positionSpeed = -1.0;
 
         if((!rightTrigger) && (!leftTrigger))
 			positionSpeed = 0.0;
-		
+
 		// Passing (reversing roller)
 		if((!pickupFlag) && (buttonB)) {
 			rollerSpeed = -1.0;
 		} else if((!pickupFlag) && (!buttonB)) {
 			rollerSpeed = 0.0;
 		}
-		
+
 		// Shooting
 		if((!pickupFlag) && (buttonX)) {
 			shooterSpeed = 1.0;
@@ -268,7 +259,7 @@ public:
 		} else if((!pickupFlag) && (!buttonX)) {
 			shooterSpeed = 0.0;
 		}
-		
+
 		if((!pickupFlag) && (buttonA)) {
 			rollerSpeed = 1.0;
 			// limit switch: true (1) = not pressed, false (0) = pressed
@@ -276,23 +267,30 @@ public:
 		} else if((!pickupFlag) && (!buttonA)) {
 			shooterSpeed = 0.0;
 		}
-		
 
 		// Trigger for starting pickup sequence
-	/*	if(rightTrigger && armFlag) {
+		if(rightTrigger && armFlag) {
 			armFlag = false;
 			timerFlag = false;
 			pickupFlag = true;
 			rollerSpeed = 0.4;
 			pickupStage = 0;
-			printf("Pickup triggered\n");
+			printf("Pickup triggered!\n");
 		} else if (!rightTrigger) {
 			armFlag = true;
-		}*/
+		}
 		
-		potentiometerValue = potentiometer->GetValue();
-		
-		
+		if(leftTrigger && pickupFlag && abortFlag) {
+			pickupStage = 5; // Arbitrary value to go to abort sequence
+			abortFlag = false;
+			rollerSpeed = -0.4;
+			printf("Pickup aborted!\n");
+		} else if (!leftTrigger) {
+			abortFlag = true;
+		}
+
+		potentiometerValue = potentiometer->GetValue(); // Remove after pickup sequence finalized
+
 		if((!pickupFlag) && (buttonY) && (!fireFlag)) {
 			fireFlag = true;
 		}
@@ -319,30 +317,28 @@ public:
 				positionFlag = false;
 			}
 		}
-		
-		
-		
+
 		// Pickup sequence
-		/*if(pickupFlag){
+		if(pickupFlag) {
 			if(pickupStage == 0) {
 				printf("pickup stage = 0\n");
-				if(potentiometerValue < 38) {
-					positionSpeed = 1.0; //notice
-				} else {
+				if(limitSwitchPickupLower->Get()) {
 					positionSpeed = 0.0;
 					pickupStage++;
+				} else {
+					positionSpeed = 1.0;
 				}
 			} else if(pickupStage == 1) {
 				printf("pickup stage = 1\n");
-				myTime = timer->Get();
+				myTime = ballPickupTimer->Get();
 				// When object detected inside threshold, set target time for automatic arm withdrawal
-				if((average >= threshold) && (!timerFlag)){
+				if((!timerFlag)) {
 					targetTime = myTime + TIME_WAIT;
 					timerFlag = true;
 				}
 
 				// If ball is not continuously detected for the TIME_WAIT limit, reset timer
-				if(timerFlag && (average < threshold)){
+				if(timerFlag){
 					timerFlag = false;
 				}
 
@@ -365,30 +361,30 @@ public:
 					rollerSpeed = 0.0;
 					pickupFlag = false;
 				}
+			} else if (pickupStage == 5) {
+				// Abortion sequence, started by leftTrigger
+				if (limitSwitchPickupUpper->Get()) {
+					positionSpeed = 0.0;
+					pickupFlag = false;
+				} else {
+					positionSpeed = 0.5;
+				}
 			}
-		}*/
-		
-		
-		
+		}
+
 		// Print values (rate limited to 1/20)
 		if((printCounter % 20) == 0) {
 			printf("%d potentiometer: %d\n", printCounter, potentiometerValue);
-			printf("%d distance sensor: %d\n", printCounter, dist_average);
 		}
 		printCounter++;
-
-		// Third position for gobbler between 0 degrees and pickup position when firing
-		// Gobbler runs showly when ball is on the catapult
-
 
 		// Motor speed declarations done at the end to ensure watchdog is continually updated.
 		motorControlLeft(leftStick);
 		motorControlRight(rightStick);
 		//printf("Left: %f, Right: %f\n", leftStick, rightStick);
-	    zoidbergRoller->SetSpeed(rollerSpeed);
-		zoidbergPosition->SetSpeed(positionSpeed);
+	    gobblerRoller->SetSpeed(rollerSpeed);
+		gobblerPosition->SetSpeed(positionSpeed);
 		shooter->SetSpeed(shooterSpeed);
-	
 	}
 
 	void DisabledContinuous(void) {
