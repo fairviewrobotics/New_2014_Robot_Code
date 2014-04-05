@@ -20,7 +20,6 @@ double targetTime = 0;
 bool compressor_enabled = true;
 bool buttonStartFlag = true;
 bool fireFlag = false;
-bool armFireFlag = false;
 bool manualModeToggle = false;
 bool autoFlag=false;
 
@@ -28,11 +27,11 @@ bool autoFlag=false;
 int sonicSensorCount = 0;
 int pickupStage = 0;
 int printCounter = 0;
-int armState = 0; // 0=home position, 1=moving towards extended, 2=extended, 3=moving towards home
+//int armState = 0; // 0=home position, 1=moving towards extended, 2=extended, 3=moving towards home
 int shootState = 0;
 int autonomousState = 0;
 float rollerSpeed = 0.0;
-float armSpeed = 0.0;
+//float armSpeed = 0.0;
 float shooterSpeed = 0.0;
 float currentTime;
 
@@ -143,7 +142,7 @@ public:
 		ballPickupTimer->Start();
 		ballPickupTimer->Reset();
 		shooter->SetSpeed(0.0);
-		gobblerPosition->SetSpeed(0.0);
+		//gobblerPosition->SetSpeed(0.0);
 		gobblerRoller->SetSpeed(0.0);
 		left_1->SetSpeed(0.0);
 		left_2->SetSpeed(0.0);
@@ -228,21 +227,21 @@ public:
 		float leftStick  = -1 * gamePadDriver->GetRawAxis(2);       // Drive system
 		float rightStick = gamePadDriver->GetRawAxis(4);            // Drive system
 		bool buttonX  = gamePadShooter->GetRawButton(1);            // Shooting
-		bool buttonB  = gamePadShooter->GetRawButton(3);            // Roll out (pass)
-		bool buttonY  = gamePadShooter->GetRawButton(4);            // Roll in
+		// bool buttonB  = gamePadShooter->GetRawButton(3);            // Roll out (pass)
+		// bool buttonY  = gamePadShooter->GetRawButton(4);            // Roll in
 		bool leftBumper  = gamePadDriver->GetRawButton(5);          // Shifting (Low)
 		bool rightBumper = gamePadDriver->GetRawButton(6);          // Shifting (High)
-		bool leftTrigger  = gamePadShooter->GetRawButton(7);        // Gobbler position down
-		bool rightTrigger = gamePadShooter->GetRawButton(8);        // Gobbler position up
+		// bool leftTrigger  = gamePadShooter->GetRawButton(7);        // Gobbler position down
+		// bool rightTrigger = gamePadShooter->GetRawButton(8);        // Gobbler position up
 		bool buttonDriverStart = gamePadDriver->GetRawButton(10);   // Compressor
-		bool buttonShooterStart = gamePadShooter->GetRawButton(10); // Manual override toggle
+		// bool buttonShooterStart = gamePadShooter->GetRawButton(10); // Manual override toggle
 		// bool buttonBack = gamePadShooter->GetRawButton(9);
 		// bool buttonA  = gamePadShooter->GetRawButton(2);
 
 		// bool limitSwitchExtended = limitSwitchPickupLower->Get();
 		// bool limitSwitchRetracted = limitSwitchPickupUpper->Get();
-		bool limitSwitchExtended = limitSwitchPickupLower->Get();
-		bool limitSwitchRetracted = limitSwitchPickupUpper->Get(); // POSSIBLE ERROR
+		//bool limitSwitchExtended = limitSwitchPickupLower->Get();
+		//bool limitSwitchRetracted = limitSwitchPickupUpper->Get(); // POSSIBLE ERROR
 
 		// Compressor toggle
 		compressorToggle(buttonDriverStart);
@@ -255,41 +254,41 @@ public:
 			ShiftLow();
 		}
 
-		manualToggle(buttonShooterStart);
+		//manualToggle(buttonShooterStart);
 
-		if(manualModeToggle) {
-			armSpeed = 0.0;
-			rollerSpeed = 0.0;
+		/*if(manualModeToggle) {
+			//armSpeed = 0.0;
+			//rollerSpeed = 0.0;
 			
 			if(leftTrigger && !rightTrigger) {
-				armSpeed = 0.6;
+				//armSpeed = 0.6;
 			}
 			else if(rightTrigger && !leftTrigger) {
-				armSpeed = -1.0;
+				//armSpeed = -1.0;
 			}
-			armState = 0;
-		}
-		else if (!fireFlag) {
-			switch(armState) {
+			//armState = 0;
+		}*/
+		/*else if (!fireFlag) {
+			switch(//armState) {
 				// arm is in home position
 				case 0:
 					rollerSpeed = 0.0; //roller speed is 0
-					armSpeed = 0.0; //arm speed is 0;
+					//armSpeed = 0.0; //arm speed is 0;
 					if(rightTrigger && !leftTrigger) {
-						armState = 1;
+						//armState = 1;
 					}
 					break;
 					
 				// arm is moving to extended position
 				case 1:
-					armSpeed = -1.0; // move arm down
+					//armSpeed = -1.0; // move arm down
 					rollerSpeed = 0.7; // run roller in
 					if(!limitSwitchExtended) {
-						armState = 2; // if limit switch hit, set go to case 2
+						//armState = 2; // if limit switch hit, set go to case 2
 					}
 					if(leftTrigger && !rightTrigger) {
 						ballPickupTimer->Reset();
-						armState = 3;
+						//armState = 3;
 					} // if left trigger pressed, go to case 3
 					
 					// if time > some larger amount, stop everything and switch to manual control
@@ -297,11 +296,11 @@ public:
 				
 				//arm is extended; ready for pickup
 				case 2:
-					armSpeed = 0.0; // stop arm movement
+					//armSpeed = 0.0; // stop arm movement
 					rollerSpeed = 0.7; // run roller in
 					if(leftTrigger && !rightTrigger) {
 						ballPickupTimer->Reset();
-						armState = 3; // if left trigger pressed, go to case 3
+						//armState = 3; // if left trigger pressed, go to case 3
 					}
 					break;
 
@@ -315,12 +314,12 @@ public:
 					else {
 						rollerSpeed = 0.7;
 					}
-					armSpeed = 0.7; // move arm up
+					//armSpeed = 0.7; // move arm up
 					if(!limitSwitchRetracted) {
-						armState = 0; // if limit switch hit, set go to case 0
+						//armState = 0; // if limit switch hit, set go to case 0
 					}
 					if(rightTrigger && !leftTrigger) {
-						armState = 1; // if right trigger is pressed, go back to case 1
+						//armState = 1; // if right trigger is pressed, go back to case 1
 					}
 					// if time > some smaller amount, reduce roller speed
 					// if time > some larger amount, stop everything and switch to manual control
@@ -338,18 +337,18 @@ public:
 			else {
 				shooterSpeed = 0.0;
 			}
-		}
-		else{  //firing mode
+		}*/
+		if(fireFlag){  //firing mode
 			switch(shootState){
 				case 0:  // move arm out of the way
-					armSpeed = -1.0; // move arm down
-					rollerSpeed = 0.5; // roll roller along ball
+					//armSpeed = -1.0; // move arm down
+					//rollerSpeed = 0.5; // roll roller along ball
 
-					if(!limitSwitchExtended) {
+					//if(!limitSwitchExtended) {
 						shootState = 1;
-						armSpeed = 0.0; // move arm down
-						rollerSpeed = 0.0; // roll roller along ball
-					}
+						//armSpeed = 0.0; // move arm down
+						//rollerSpeed = 0.0; // roll roller along ball
+					//}
 				break;
 				
 				case 1:  // arm is extended; advance shooter to fire
@@ -359,15 +358,15 @@ public:
 					else {
 						fireFlag = false;
 						shootState = 0;
-						armState = 2;
+						//armState = 2;
 					}
 				break;
 			}
 		}
 		
 		// manual control of roller
-		if(buttonB) rollerSpeed = -1.0;
-		if(buttonY) rollerSpeed = 1.0;
+		//if(buttonB) rollerSpeed = -1.0;
+		//if(buttonY) rollerSpeed = 1.0;
 		if(buttonX) fireFlag = true;		
 
 		// Print values (rate limited to 1/20)
@@ -387,8 +386,8 @@ public:
 		// Motor speed declarations done at the end to ensure watchdog is continually updated.
 		motorControlLeft(leftStick);
 		motorControlRight(rightStick);
-		gobblerRoller->SetSpeed(rollerSpeed);
-		gobblerPosition->SetSpeed(armSpeed);
+		//gobblerRoller->SetSpeed(rollerSpeed);
+		//gobblerPosition->SetSpeed(armSpeed);
 		shooter->SetSpeed(shooterSpeed);
 	}
 
