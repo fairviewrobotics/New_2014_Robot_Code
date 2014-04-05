@@ -21,16 +21,16 @@ bool compressor_enabled = true;
 bool buttonStartFlag = true;
 bool fireFlag = false;
 bool manualModeToggle = false;
-bool autoFlag=false;
+bool autoFlag = false;
 
 // Integer globals
 int sonicSensorCount = 0;
-int pickupStage = 0;
+// int pickupStage = 0;
 int printCounter = 0;
 //int armState = 0; // 0=home position, 1=moving towards extended, 2=extended, 3=moving towards home
 int shootState = 0;
 int autonomousState = 0;
-float rollerSpeed = 0.0;
+// float rollerSpeed = 0.0;
 //float armSpeed = 0.0;
 float shooterSpeed = 0.0;
 float currentTime;
@@ -42,8 +42,8 @@ class BuiltinDefaultCode : public IterativeRobot {
 	Talon *left_2;
 	Talon *right_1;
 	Talon *right_2;
-	Victor *gobblerRoller;
-	Victor *gobblerPosition;
+	// Victor *gobblerRoller;
+	// Victor *gobblerPosition;
 	Victor *shooter;
 
 	// Compressor
@@ -57,14 +57,14 @@ class BuiltinDefaultCode : public IterativeRobot {
 	AxisCamera *camera;
 	
 	// Timer for automatic ball pickup
-	Timer *ballPickupTimer;
+	// Timer *ballPickupTimer;
 	Timer *autonomousTimer;
 
 	// Limit switches
 	DigitalInput *limitSwitchShooter;
-	DigitalInput *limitSwitchPickupLower;
-	DigitalInput *limitSwitchPickupUpper;
-	DigitalInput *ultraSonicSensor;
+	// DigitalInput *limitSwitchPickupLower;
+	// DigitalInput *limitSwitchPickupUpper;
+	// DigitalInput *ultraSonicSensor;
 
 	// Joystick
 	Joystick *gamePadDriver;  // Silver
@@ -81,9 +81,9 @@ public:
 		right_1 = new Talon(3);
 		right_2 = new Talon(4);
 
-		gobblerRoller = new Victor(5);
+		// gobblerRoller = new Victor(5);
 		shooter = new Victor(7);
-		gobblerPosition = new Victor(8);
+		// gobblerPosition = new Victor(8);
 
 		compressor = new Compressor(1,1);
 
@@ -93,12 +93,12 @@ public:
 		gamePadDriver  = new Joystick(1); // Blue (unmarked)
 		gamePadShooter = new Joystick(2); // Red
 
-		limitSwitchPickupLower = new DigitalInput(2);
-		limitSwitchPickupUpper = new DigitalInput(3);
+		// limitSwitchPickupLower = new DigitalInput(2);
+		// limitSwitchPickupUpper = new DigitalInput(3);
 		limitSwitchShooter     = new DigitalInput(5);
-		ultraSonicSensor       = new DigitalInput(4);
+		// ultraSonicSensor       = new DigitalInput(4);
 
-		ballPickupTimer = new Timer();
+		// ballPickupTimer = new Timer();
 		autonomousTimer = new Timer();
 
 
@@ -139,11 +139,11 @@ public:
 		for (int thisReading = 0; thisReading < numReadings; thisReading++) readings[thisReading] = 0; 
 		compressor->Start();
 		compressor_enabled = true;
-		ballPickupTimer->Start();
-		ballPickupTimer->Reset();
+		// ballPickupTimer->Start();
+		// ballPickupTimer->Reset();
 		shooter->SetSpeed(0.0);
 		//gobblerPosition->SetSpeed(0.0);
-		gobblerRoller->SetSpeed(0.0);
+		// gobblerRoller->SetSpeed(0.0);
 		left_1->SetSpeed(0.0);
 		left_2->SetSpeed(0.0);
 		right_1->SetSpeed(0.0);
@@ -168,20 +168,13 @@ public:
 	}
 
 	void AutonomousPeriodic(void) {
-		if(autoFlag){
-			motorControlLeft(0.0);
-			motorControlRight(0.0);
-		} else {
+		if (autonomousTimer->Get() < 1.0) { // Drives forward for 1 second
 			motorControlLeft(0.6);
 			motorControlRight(-0.6);
-			
-			if(!ultraSonicSensor->Get() && sonicSensorCount < 3) {
-				sonicSensorCount++;
-			}
-			else if(ultraSonicSensor->Get()) {
-				sonicSensorCount = 0;
-			}
-			if(sonicSensorCount==3)autoFlag=true;
+		}
+		else {
+			motorControlLeft(0.0);
+			motorControlRight(0.0);
 		}
 	}
 
@@ -329,46 +322,61 @@ public:
 					// something went wrong, print an angry error message
 					printf("ERROR, default case hit");
 					break;
-			}
+			}*/
 			
-			if(limitSwitchShooter->Get()) {
-				shooterSpeed = 1.0;
-			}
-			else {
-				shooterSpeed = 0.0;
-			}
-		}*/
-		if(fireFlag){  //firing mode
-			switch(shootState){
-				case 0:  // move arm out of the way
-					//armSpeed = -1.0; // move arm down
-					//rollerSpeed = 0.5; // roll roller along ball
-
-					//if(!limitSwitchExtended) {
-						shootState = 1;
-						//armSpeed = 0.0; // move arm down
-						//rollerSpeed = 0.0; // roll roller along ball
-					//}
-				break;
-				
-				case 1:  // arm is extended; advance shooter to fire
-					if(!limitSwitchShooter->Get()) {
-						shooterSpeed = 1.0;
-					}
-					else {
-						fireFlag = false;
-						shootState = 0;
-						//armState = 2;
-					}
-				break;
-			}
-		}
+//			if(limitSwitchShooter->Get() && !fireFlag) {
+//				shooterSpeed = 1.0;
+//			}
+//			else {
+//				shooterSpeed = 0.0;
+//			}
+//		}
+		
+//		if(limitSwitchShooter->Get() && !fireFlag) {
+//			shooterSpeed = 1.0;
+//		}
+//		else {
+//			shooterSpeed = 0.0;
+//		}
+	
+//		if(fireFlag){  //firing mode
+//			switch(shootState){
+//				case 0:  // move arm out of the way
+//					//armSpeed = -1.0; // move arm down
+//					//rollerSpeed = 0.5; // roll roller along ball
+//
+//					//if(!limitSwitchExtended) {
+//						shootState = 1;
+//						//armSpeed = 0.0; // move arm down
+//						//rollerSpeed = 0.0; // roll roller along ball
+//					//}
+//				break;
+//				
+//				case 1:  // arm is extended; advance shooter to fire
+//					if(!limitSwitchShooter->Get()) {
+//						shooterSpeed = 1.0;
+//					}
+//					else {
+//						fireFlag = false;
+//						shootState = 0;
+//						//armState = 2;
+//					}
+//				break;
+//			}
+//		}
 		
 		// manual control of roller
 		//if(buttonB) rollerSpeed = -1.0;
 		//if(buttonY) rollerSpeed = 1.0;
-		if(buttonX) fireFlag = true;		
+		//if(buttonX) fireFlag = true;
 
+		// Manual shooter control
+		if(buttonX) {
+			shooterSpeed = 1.0;
+		} else {
+			shooterSpeed = 0.0;
+		}
+			
 		// Print values (rate limited to 1/20)
 //		if(printCounter % 20 == 0) {
 //			if(!limitSwitchExtended) printf("Lower Limit Hit\n");
