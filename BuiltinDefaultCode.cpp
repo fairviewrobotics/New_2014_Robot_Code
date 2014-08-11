@@ -27,11 +27,11 @@ bool autoFlag = false;
 int sonicSensorCount = 0;
 // int pickupStage = 0;
 int printCounter = 0;
-//int armState = 0; // 0=home position, 1=moving towards extended, 2=extended, 3=moving towards home
+// int armState = 0; // 0=home position, 1=moving towards extended, 2=extended, 3=moving towards home
 int shootState = 0;
 int autonomousState = 0;
-// float rollerSpeed = 0.0;
-//float armSpeed = 0.0;
+float rollerSpeed = 0.0;
+// float armSpeed = 0.0;
 float shooterSpeed = 0.0;
 float currentTime;
 
@@ -39,10 +39,11 @@ class BuiltinDefaultCode : public IterativeRobot {
 
 	// Motor controllers
 	Talon *left_1;
-	Talon *left_2;
+	// Talon *left_2;
 	Talon *right_1;
-	Talon *right_2;
-	// Victor *gobblerRoller;
+	// Talon *right_2;
+	
+	Victor *gobblerRoller;
 	// Victor *gobblerPosition;
 	Victor *shooter;
 
@@ -52,6 +53,8 @@ class BuiltinDefaultCode : public IterativeRobot {
 	// Solenoids
 	Solenoid *shifterHi;
 	Solenoid *shifterLo;
+	Solenoid *gobblerShifterHi;
+	Solenoid *gobblerShifterLo;
 
 	// Axis Camera
 	AxisCamera *camera;
@@ -77,25 +80,27 @@ public:
 		printf("BuiltinDefaultCode Constructor Started\n");
 
 		left_1  = new Talon(1);
-		left_2  = new Talon(2);
-		right_1 = new Talon(3);
-		right_2 = new Talon(4);
+		// left_2  = new Talon(2);
+		right_1 = new Talon(2);
+		// right_2 = new Talon(4);
 
-		// gobblerRoller = new Victor(5);
-		shooter = new Victor(7);
+		gobblerRoller = new Victor(3);
+		shooter = new Victor(4);
 		// gobblerPosition = new Victor(8);
 
-		compressor = new Compressor(1,1);
+		compressor = new Compressor(2,1);
 
 		shifterHi = new Solenoid(1);
 		shifterLo = new Solenoid(2);
-
+		gobblerShifterHi = new Solenoid(3);
+		gobblerShifterLo = new Solenoid(4);
+		
 		gamePadDriver  = new Joystick(1); // Blue (unmarked)
 		gamePadShooter = new Joystick(2); // Red
 
 		// limitSwitchPickupLower = new DigitalInput(2);
 		// limitSwitchPickupUpper = new DigitalInput(3);
-		limitSwitchShooter     = new DigitalInput(5);
+		//limitSwitchShooter     = new DigitalInput(5);
 		// ultraSonicSensor       = new DigitalInput(4);
 
 		// ballPickupTimer = new Timer();
@@ -143,11 +148,11 @@ public:
 		// ballPickupTimer->Reset();
 		shooter->SetSpeed(0.0);
 		//gobblerPosition->SetSpeed(0.0);
-		// gobblerRoller->SetSpeed(0.0);
+		gobblerRoller->SetSpeed(0.0);
 		left_1->SetSpeed(0.0);
-		left_2->SetSpeed(0.0);
+		// left_2->SetSpeed(0.0);
 		right_1->SetSpeed(0.0);
-		right_2->SetSpeed(0.0);
+		// right_2->SetSpeed(0.0);
 	}
 
 	/********************************** Periodic Routines *************************************/
@@ -158,13 +163,13 @@ public:
 	void motorControlLeft(float speed) 
 	{
 		left_1->SetSpeed(speed);
-		left_2->SetSpeed(speed);
+		// left_2->SetSpeed(speed);
 	}
 
 	void motorControlRight(float speed)
 	{
 		right_1->SetSpeed(speed);
-		right_2->SetSpeed(speed);
+		// right_2->SetSpeed(speed);
 	}
 
 	void AutonomousPeriodic(void) {
@@ -194,6 +199,22 @@ public:
 		}
 	}
 	
+	void GobblerPositionHigh(void) {
+		// shifter->Get() return values: false is low gear, true is high gear
+		if(!(gobblerShifterHi->Get())) {
+			gobblerShifterHi->Set(true);
+			gobblerShifterLo->Set(false);
+		}
+	}
+
+	void GobblerPositionLow(void) {
+		// shifter->Get() return values: false is low gear, true is high gear
+		if(gobblerShifterHi->Get()) {
+			gobblerShifterHi->Set(false);
+			gobblerShifterLo->Set(true);
+		}
+	}
+	
 	void compressorToggle(bool buttonState) {
 		static bool lastButtonState = false;
 		if(buttonState && !lastButtonState) {
@@ -219,17 +240,17 @@ public:
 	void TeleopPeriodic(void) {
 		float leftStick  = -1 * gamePadDriver->GetRawAxis(2);       // Drive system
 		float rightStick = gamePadDriver->GetRawAxis(4);            // Drive system
-		bool buttonX  = gamePadShooter->GetRawButton(1);            // Shooting
-		// bool buttonB  = gamePadShooter->GetRawButton(3);            // Roll out (pass)
-		// bool buttonY  = gamePadShooter->GetRawButton(4);            // Roll in
+		//bool buttonX  = gamePadShooter->GetRawButton(1);            // Shooting
+		bool buttonB  = gamePadDriver->GetRawButton(3);            // Roll out (pass)
+		bool buttonY  = gamePadDriver->GetRawButton(4);            // Roll in
 		bool leftBumper  = gamePadDriver->GetRawButton(5);          // Shifting (Low)
 		bool rightBumper = gamePadDriver->GetRawButton(6);          // Shifting (High)
-		// bool leftTrigger  = gamePadShooter->GetRawButton(7);        // Gobbler position down
-		// bool rightTrigger = gamePadShooter->GetRawButton(8);        // Gobbler position up
+		bool leftTrigger  = gamePadDriver->GetRawButton(7);        // Gobbler position down
+		bool rightTrigger = gamePadDriver->GetRawButton(8);        // Gobbler position up
 		bool buttonDriverStart = gamePadDriver->GetRawButton(10);   // Compressor
 		// bool buttonShooterStart = gamePadShooter->GetRawButton(10); // Manual override toggle
 		// bool buttonBack = gamePadShooter->GetRawButton(9);
-		// bool buttonA  = gamePadShooter->GetRawButton(2);
+		bool buttonA  = gamePadDriver->GetRawButton(2);
 
 		// bool limitSwitchExtended = limitSwitchPickupLower->Get();
 		// bool limitSwitchRetracted = limitSwitchPickupUpper->Get();
@@ -246,7 +267,14 @@ public:
 		else if(leftBumper && !rightBumper) {
 			ShiftLow();
 		}
-
+		
+		// Triggers
+		if(rightTrigger && !leftTrigger) {
+					GobblerPositionHigh();
+		}
+		else if(leftTrigger && !rightTrigger) {
+					GobblerPositionLow();
+		}
 		//manualToggle(buttonShooterStart);
 
 		/*if(manualModeToggle) {
@@ -365,13 +393,14 @@ public:
 //			}
 //		}
 		
+		rollerSpeed = 0.0;
 		// manual control of roller
-		//if(buttonB) rollerSpeed = -1.0;
-		//if(buttonY) rollerSpeed = 1.0;
+		if(buttonB) rollerSpeed = -1.0;
+		if(buttonY) rollerSpeed = 1.0;
 		//if(buttonX) fireFlag = true;
 
 		// Manual shooter control
-		if(buttonX) {
+		if(buttonA) {
 			shooterSpeed = 1.0;
 		} else {
 			shooterSpeed = 0.0;
@@ -394,7 +423,7 @@ public:
 		// Motor speed declarations done at the end to ensure watchdog is continually updated.
 		motorControlLeft(leftStick);
 		motorControlRight(rightStick);
-		//gobblerRoller->SetSpeed(rollerSpeed);
+		gobblerRoller->SetSpeed(rollerSpeed);
 		//gobblerPosition->SetSpeed(armSpeed);
 		shooter->SetSpeed(shooterSpeed);
 	}
@@ -412,4 +441,4 @@ public:
 	}
 };
 
-START_ROBOT_CLASS(BuiltinDefaultCode);
+START_ROBOT_CLASS(BuiltinDefaultCode)
